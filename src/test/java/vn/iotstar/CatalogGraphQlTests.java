@@ -37,6 +37,13 @@ class CatalogGraphQlTests {
         graphQl.document("mutation { updateCategory(id:\"" + category + "\",input:{name:\"Điện tử mới\"}) { name } }").execute().path("updateCategory.name").entity(String.class).isEqualTo("Điện tử mới");
         graphQl.document("mutation { deleteCategory(id:\"" + category + "\") }").execute().path("deleteCategory").entity(Boolean.class).isEqualTo(true);
     }
+    @Test void categoryValidationRejectsBlankAndDuplicateNames() {
+        graphQl.document("mutation { createCategory(input:{name:\" \"}) { id } }").execute().errors()
+                .satisfy(errors -> assertThat(errors).anyMatch(e -> e.getExtensions().get("code").equals("VALIDATION_ERROR")));
+        createCategory();
+        graphQl.document("mutation { createCategory(input:{name:\"đIệN Tử\"}) { id } }").execute().errors()
+                .satisfy(errors -> assertThat(errors).anyMatch(e -> e.getExtensions().get("code").equals("CONFLICT")));
+    }
     @Test void productQueriesAreSortedFilteredAndIncludeRelations() {
         Long user = createUser(); Long category = createCategory();
         createProduct(user, category, "Đắt", 1, "900"); Long cheap = createProduct(user, category, "Rẻ", 3, "100");
@@ -51,9 +58,11 @@ class CatalogGraphQlTests {
         graphQl.document("mutation { createProduct(input:{title:\" \",quantity:1,price:1,userId:\"" + user + "\",categoryId:\"" + category + "\"}) { id } }").execute().errors()
                 .satisfy(errors -> assertThat(errors).anyMatch(e -> e.getExtensions().get("code").equals("VALIDATION_ERROR")));
         graphQl.document("mutation { createProduct(input:{title:\"X\",quantity:-1,price:1,userId:\"" + user + "\",categoryId:\"" + category + "\"}) { id } }").execute().errors().satisfy(errors -> assertThat(errors).isNotEmpty());
+        graphQl.document("mutation { createProduct(input:{title:\"X\",quantity:1,price:-1,userId:\"" + user + "\",categoryId:\"" + category + "\"}) { id } }").execute().errors().satisfy(errors -> assertThat(errors).isNotEmpty());
         Long product = createProduct(user, category, "Cũ", 1, "10");
         graphQl.document("mutation { updateProduct(id:\"" + product + "\",input:{title:\"Mới\",price:20}) { title price } }").execute().path("updateProduct.title").entity(String.class).isEqualTo("Mới");
         graphQl.document("mutation { deleteProduct(id:\"999999\") }").execute().errors().satisfy(errors -> assertThat(errors).anyMatch(e -> e.getExtensions().get("code").equals("NOT_FOUND")));
+        graphQl.document("{ productById(id:\"999999\") { id } }").execute().path("productById").valueIsNull();
         graphQl.document("mutation { deleteProduct(id:\"" + product + "\") }").execute().path("deleteProduct").entity(Boolean.class).isEqualTo(true);
     }
 }
