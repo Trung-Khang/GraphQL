@@ -34,10 +34,42 @@ $env:DB_PASSWORD = "<your-password>"
 
 Datasource mặc định là `localhost:1433/graphql_db`; có thể thay bằng `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`.
 
+## Chạy và kiểm thử
+
+```powershell
+mvn clean test
+mvn clean package
+& "$env:JAVA_HOME\bin\java.exe" -jar ".\target\graphql-product-category-0.0.1-SNAPSHOT.jar"
+```
+
+- GraphQL: `http://localhost:8083/graphql` (POST)
+- GraphiQL: `http://localhost:8083/graphiql`
+- AJAX Category/Product sẽ được bổ sung ở Mục 3.
+
+GraphQL có thể phản hồi HTTP 200 đồng thời chứa `errors`; client phải kiểm tra `errors` thay vì chỉ dựa HTTP status. Lỗi nghiệp vụ trả extension code `NOT_FOUND`, `CONFLICT` hoặc `VALIDATION_ERROR` mà không lộ stack trace/SQL/password.
+
+### Query
+
+`products`, `productById`, `productsByPriceAsc`, `productsByCategory`, `categories`, `categoryById`, `users`, `userById`.
+
+```graphql
+query ProductsByCategory($categoryId: ID!) {
+  productsByCategory(categoryId: $categoryId) { id title price }
+}
+```
+
+```json
+{"categoryId":"1"}
+```
+
+### Mutation
+
+`createCategory`, `updateCategory`, `deleteCategory`, `createProduct`, `updateProduct`, `deleteProduct`, `createUser`, `assignUsersToCategory`.
+
 ## Kế hoạch
 
 - [x] Mục 1: nghiên cứu PDF, scaffold, thiết kế entity/repository/schema.
-- [ ] Mục 2: hoàn thiện GraphQL service, resolver, validation và test thực.
+- [x] Mục 2: GraphQL service, resolver, validation, H2 GraphQlTester và SQL Server runtime.
 - [ ] Mục 3: hoàn thiện hai trang AJAX và kiểm thử trình duyệt.
 
-Ở cuối Mục 1, schema đã khai báo đầy đủ contract nhưng resolver nghiệp vụ, CRUD và giao diện chưa hoàn thành.
+Mục 2 dùng DTO input, service transaction, repository sorting ở database và `@EntityGraph` cho quan hệ Product-User-Category. Password User được BCrypt hash và schema không expose trường này.
