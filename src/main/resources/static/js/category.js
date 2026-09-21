@@ -1,0 +1,12 @@
+$(function () {
+  const modal = new bootstrap.Modal('#category-modal'); let categories = [], users = [];
+  const query = '{ categories { id name images users { id fullname email } products { id } } users { id fullname email } }';
+  function userOptions(selected) { return users.map(u => `<option value="${u.id}" ${selected.includes(String(u.id))?'selected':''}>${Gql.escape(u.fullname)} (${Gql.escape(u.email)})</option>`).join(''); }
+  function render() { const rows=categories.map(c=>`<tr><td>${c.id}</td><td>${Gql.escape(c.name)}</td><td>${Gql.escape(c.images||'')}</td><td>${c.users.map(u=>Gql.escape(u.fullname)).join(', ')||'—'}</td><td>${c.products.length}</td><td class="text-end"><button class="btn btn-sm btn-outline-primary edit" data-id="${c.id}">Sửa</button><button class="btn btn-sm btn-outline-danger remove" data-id="${c.id}">Xóa</button></td></tr>`).join(''); $('#category-body').html(rows||'<tr><td colspan="6" class="text-center empty">Chưa có Category.</td></tr>'); }
+  function load() { $('#loading').show(); Gql.request(query).done(d=>{categories=d.categories;users=d.users;render();}).fail(Gql.fail.bind(Gql)).always(()=>$('#loading').hide()); }
+  $('#new-category').click(()=>{ $('#category-form')[0].reset();$('#category-id').val('');$('#category-users').html(userOptions([]));$('#category-modal-title').text('Thêm Category');modal.show(); });
+  $('#category-body').on('click','.edit',function(){ const c=categories.find(x=>String(x.id)===$(this).data('id')); $('#category-id').val(c.id);$('#category-name').val(c.name);$('#category-images').val(c.images||'');$('#category-users').html(userOptions(c.users.map(u=>String(u.id))));$('#category-modal-title').text('Sửa Category');modal.show(); });
+  $('#category-form').submit(function(e){e.preventDefault();const id=$('#category-id').val(), input={name:$('#category-name').val(),images:$('#category-images').val(),userIds:$('#category-users').val()||[]};const q=id?'mutation($id:ID!,$input:UpdateCategoryInput!){updateCategory(id:$id,input:$input){id}}':'mutation($input:CreateCategoryInput!){createCategory(input:$input){id}}';Gql.request(q,id?{id,input}:{input}).done(()=>{modal.hide();Gql.notice('Đã lưu Category.');load();}).fail(Gql.fail.bind(Gql));});
+  $('#category-body').on('click','.remove',function(){const id=$(this).data('id');if(!confirm('Xóa Category này? Category còn Product sẽ bị từ chối.'))return;Gql.request('mutation($id:ID!){deleteCategory(id:$id)}',{id}).done(()=>{Gql.notice('Đã xóa Category.');load();}).fail(Gql.fail.bind(Gql));});
+  load();
+});
